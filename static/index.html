@@ -8,323 +8,371 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
 :root {
-  --bg-base: #0a0a0f;
-  --bg-surface: #111118;
-  --bg-elevated: #1a1a24;
-  --border: #2a2a3a;
-  --accent: #6366f1;
-  --accent-glow: rgba(99,102,241,0.15);
-  --text-primary: #f0f0f5;
-  --text-muted: #6b7280;
-  --green: #22c55e;
-  --blue: #60a5fa;
-  --yellow: #fbbf24;
-  --red: #f87171;
-  --orange: #fb923c;
-  --font-body: 'DM Sans', -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+  --bg-base:#0a0a0f; --bg-surface:#111118; --bg-elevated:#1a1a24;
+  --border:#2a2a3a; --accent:#6366f1; --accent-glow:rgba(99,102,241,0.15);
+  --text-primary:#f0f0f5; --text-muted:#6b7280;
+  --green:#22c55e; --blue:#60a5fa; --yellow:#fbbf24;
+  --red:#f87171; --orange:#fb923c; --cyan:#22d3ee; --purple:#a78bfa;
+  --font-body:'DM Sans',-apple-system,sans-serif;
+  --font-mono:'JetBrains Mono','Consolas',monospace;
 }
 
-::selection { background: rgba(99,102,241,0.3); }
+::selection { background:rgba(99,102,241,0.3); }
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
 
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-html { font-size: 14px; }
+html { font-size:14px; }
 body {
-  font-family: var(--font-body);
-  background: var(--bg-base);
-  color: var(--text-primary);
-  min-height: 100vh;
-  overflow-x: hidden;
+  font-family:var(--font-body); background:var(--bg-base);
+  color:var(--text-primary); min-height:100vh; overflow-x:hidden;
 }
-
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
+a { color:var(--accent); text-decoration:none; }
 
 /* --- Header --- */
 .header {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  height: 48px; display: flex; align-items: center; justify-content: space-between;
-  padding: 0 24px;
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--border);
+  position:fixed; top:0; left:0; right:0; z-index:100; height:48px;
+  display:flex; align-items:center; justify-content:space-between; padding:0 24px;
+  background:var(--bg-surface); border-bottom:1px solid var(--border);
 }
-.header-left { display: flex; align-items: center; gap: 10px; }
+.header-left { display:flex; align-items:center; gap:10px; }
 .logo-mark {
-  width: 28px; height: 28px; border-radius: 6px;
-  background: var(--accent); display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 14px; color: #fff;
+  width:28px; height:28px; border-radius:6px; background:var(--accent);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:14px; color:#fff;
 }
-.logo-text { font-weight: 700; font-size: 15px; letter-spacing: 1.5px; }
-.header-right { display: flex; align-items: center; gap: 16px; }
-.version-tag { font-size: 11px; color: var(--text-muted); }
+.logo-text { font-weight:700; font-size:15px; letter-spacing:1.5px; }
+.version-tag { font-size:11px; color:var(--text-muted); }
 
-/* --- Main Content --- */
-.main { padding-top: 48px; }
-
-/* --- Hero Input --- */
+/* --- Layout --- */
+.main { padding-top:48px; }
 .hero {
-  display: flex; flex-direction: column; align-items: center;
-  padding: 48px 24px 40px;
-  animation: fadeInUp 200ms ease;
+  display:flex; flex-direction:column; align-items:center;
+  padding:36px 24px 28px; animation:fadeInUp 200ms ease;
 }
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+@keyframes fadeInUp { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+
 .input-label {
-  font-size: 11px; font-weight: 600; letter-spacing: 2px;
-  color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase;
+  font-size:11px; font-weight:600; letter-spacing:2px;
+  color:var(--text-muted); margin-bottom:12px; text-transform:uppercase;
 }
-.input-wrapper {
-  position: relative; width: 100%; max-width: 600px;
-}
+.input-wrapper { position:relative; width:100%; max-width:600px; }
 .domain-input {
-  width: 100%; height: 52px; padding: 0 130px 0 20px;
-  background: var(--bg-elevated); color: var(--text-primary);
-  border: 1px solid var(--border); border-radius: 12px;
-  font-family: var(--font-body); font-size: 15px;
-  outline: none; transition: border-color 150ms, box-shadow 150ms;
+  width:100%; height:52px; padding:0 130px 0 20px;
+  background:var(--bg-elevated); color:var(--text-primary);
+  border:1px solid var(--border); border-radius:12px;
+  font-family:var(--font-body); font-size:15px;
+  outline:none; transition:border-color 150ms,box-shadow 150ms;
 }
-.domain-input::placeholder { color: var(--text-muted); }
-.domain-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
+.domain-input::placeholder { color:var(--text-muted); }
+.domain-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
 .scan-btn {
-  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
-  height: 40px; padding: 0 24px; border: none; border-radius: 10px;
-  background: var(--accent); color: #fff; font-family: var(--font-body);
-  font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
-  cursor: pointer; transition: opacity 150ms;
-  display: flex; align-items: center; gap: 8px;
+  position:absolute; right:6px; top:50%; transform:translateY(-50%);
+  height:40px; padding:0 24px; border:none; border-radius:10px;
+  background:var(--accent); color:#fff; font-family:var(--font-body);
+  font-size:13px; font-weight:600; letter-spacing:0.5px;
+  cursor:pointer; transition:opacity 150ms;
+  display:flex; align-items:center; gap:8px;
 }
-.scan-btn:hover { opacity: 0.9; }
-.scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.scan-btn:hover { opacity:0.9; }
+.scan-btn:disabled { opacity:0.5; cursor:not-allowed; }
 .spinner {
-  width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: #fff; border-radius: 50%;
-  animation: spin 0.6s linear infinite; display: none;
+  width:14px; height:14px; border:2px solid rgba(255,255,255,0.3);
+  border-top-color:#fff; border-radius:50%;
+  animation:spin .6s linear infinite; display:none;
 }
-.scan-btn.scanning .spinner { display: block; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.scan-btn.scanning .spinner { display:block; }
+@keyframes spin { to{transform:rotate(360deg)} }
 
-/* --- Dashboard Grid --- */
+/* --- Tool Selector --- */
+.tool-selector {
+  width:100%; max-width:700px; margin:0 auto;
+  padding:0 24px 20px;
+}
+.tool-selector-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:10px;
+}
+.tool-selector-title {
+  font-size:11px; font-weight:600; letter-spacing:2px;
+  color:var(--text-muted); text-transform:uppercase;
+}
+.tool-select-actions { display:flex; gap:8px; }
+.tool-select-actions button {
+  font-size:11px; padding:3px 10px; border:1px solid var(--border);
+  border-radius:6px; background:transparent; color:var(--text-muted);
+  cursor:pointer; font-family:var(--font-body);
+}
+.tool-select-actions button:hover { color:var(--text-primary); border-color:var(--text-muted); }
+
+.tools-grid {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));
+  gap:8px;
+}
+.tool-card {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px; border:1px solid var(--border);
+  border-radius:10px; background:var(--bg-surface);
+  cursor:pointer; transition:all 150ms; user-select:none;
+}
+.tool-card:hover { border-color:var(--text-muted); background:var(--bg-elevated); }
+.tool-card.selected { border-color:var(--accent); background:var(--accent-glow); }
+.tool-card.disabled { opacity:0.4; cursor:not-allowed; }
+.tool-checkbox {
+  width:16px; height:16px; border-radius:4px; border:1.5px solid var(--border);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  font-size:11px; transition:all 150ms;
+}
+.tool-card.selected .tool-checkbox {
+  background:var(--accent); border-color:var(--accent); color:#fff;
+}
+.tool-info { flex:1; min-width:0; }
+.tool-name { font-size:12px; font-weight:600; }
+.tool-desc { font-size:10px; color:var(--text-muted); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; }
+
+/* Wordlist selector */
+.wordlist-section {
+  width:100%; max-width:700px; margin:0 auto; padding:0 24px 24px;
+  display:flex; align-items:center; gap:12px;
+}
+.wordlist-section label {
+  font-size:11px; font-weight:600; letter-spacing:2px;
+  color:var(--text-muted); text-transform:uppercase; white-space:nowrap;
+}
+.wordlist-toggle {
+  display:flex; gap:0; border:1px solid var(--border); border-radius:8px; overflow:hidden;
+}
+.wordlist-toggle button {
+  padding:6px 14px; font-size:12px; border:none; cursor:pointer;
+  font-family:var(--font-body); font-weight:500;
+  background:var(--bg-surface); color:var(--text-muted); transition:all 150ms;
+}
+.wordlist-toggle button.active {
+  background:var(--accent); color:#fff;
+}
+.wordlist-custom-input {
+  flex:1; height:34px; padding:0 12px; font-size:12px;
+  background:var(--bg-elevated); color:var(--text-primary);
+  border:1px solid var(--border); border-radius:8px;
+  font-family:var(--font-mono); outline:none; display:none;
+}
+.wordlist-custom-input:focus { border-color:var(--accent); }
+.wordlist-custom-input.visible { display:block; }
+
+/* --- Dashboard --- */
 .dashboard {
-  display: grid; grid-template-columns: 280px 1fr;
-  gap: 16px; padding: 0 24px 24px; max-width: 1200px; margin: 0 auto;
-  min-height: 400px;
+  display:grid; grid-template-columns:280px 1fr;
+  gap:16px; padding:0 24px 24px; max-width:1200px; margin:0 auto;
+  min-height:400px;
 }
-@media (max-width: 768px) {
-  .dashboard { grid-template-columns: 1fr; }
-}
+@media(max-width:768px){ .dashboard{grid-template-columns:1fr} }
 
-/* --- Card base --- */
 .card {
-  background: var(--bg-surface); border: 1px solid var(--border);
-  border-radius: 12px; overflow: hidden;
+  background:var(--bg-surface); border:1px solid var(--border);
+  border-radius:12px; overflow:hidden;
 }
 
 /* --- Pipeline Panel --- */
-.pipeline-card { display: flex; flex-direction: column; }
+.pipeline-card { display:flex; flex-direction:column; }
 .card-title {
-  font-size: 11px; font-weight: 600; letter-spacing: 2px;
-  color: var(--text-muted); padding: 16px 16px 12px; text-transform: uppercase;
+  font-size:11px; font-weight:600; letter-spacing:2px;
+  color:var(--text-muted); padding:16px 16px 12px; text-transform:uppercase;
 }
-.pipeline-steps { flex: 1; padding: 0 16px; }
+.pipeline-steps { flex:1; padding:0 16px; }
 .step {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 12px; border-radius: 8px; margin-bottom: 4px;
-  border-left: 3px solid transparent; transition: all 200ms ease;
+  display:flex; align-items:center; gap:10px;
+  padding:9px 12px; border-radius:8px; margin-bottom:3px;
+  border-left:3px solid transparent; transition:all 200ms ease;
 }
-.step.active {
-  background: var(--accent-glow);
-  border-left-color: var(--accent);
-}
-.step.done { border-left-color: var(--green); }
-.step.skip .step-name { text-decoration: line-through; color: var(--text-muted); }
-.step-number {
-  font-family: var(--font-mono); font-size: 11px;
-  color: var(--text-muted); min-width: 18px;
-}
-.step-name { font-weight: 500; font-size: 13px; flex: 1; }
-.step-icon { font-size: 13px; min-width: 18px; text-align: center; }
-.step.active .step-icon { color: var(--accent); }
-.step.done .step-icon { color: var(--green); }
-
+.step.active { background:var(--accent-glow); border-left-color:var(--accent); }
+.step.done { border-left-color:var(--green); }
+.step.skip .step-name { text-decoration:line-through; color:var(--text-muted); }
+.step.error { border-left-color:var(--red); }
+.step-number { font-family:var(--font-mono); font-size:11px; color:var(--text-muted); min-width:18px; }
+.step-name { font-weight:500; font-size:12px; flex:1; }
+.step-count { font-family:var(--font-mono); font-size:10px; color:var(--text-muted); }
+.step-icon { font-size:13px; min-width:18px; text-align:center; }
+.step.done .step-icon { color:var(--green); }
 .pulse-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--accent); display: none;
-  animation: pulse 1.5s ease infinite;
+  width:7px; height:7px; border-radius:50%; background:var(--accent);
+  display:none; animation:pulse 1.5s ease infinite;
 }
-.step.active .pulse-dot { display: block; }
-@keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(1.4); }
-}
+.step.active .pulse-dot { display:block; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
 
-.pipeline-footer { padding: 16px; }
-.elapsed {
-  font-family: var(--font-mono); font-size: 13px;
-  color: var(--text-muted); margin-bottom: 10px;
-}
-.progress-bar {
-  height: 2px; background: var(--border); border-radius: 2px; overflow: hidden;
-}
-.progress-fill {
-  height: 100%; width: 0%; background: var(--accent);
-  transition: width 300ms ease;
-}
+.pipeline-footer { padding:12px 16px; }
+.elapsed { font-family:var(--font-mono); font-size:13px; color:var(--text-muted); margin-bottom:8px; }
+.progress-bar { height:2px; background:var(--border); border-radius:2px; overflow:hidden; }
+.progress-fill { height:100%; width:0%; background:var(--accent); transition:width 300ms ease; }
 
-.export-section { padding: 16px; display: flex; gap: 8px; }
+/* --- Export Panel --- */
+.export-section { padding:12px 16px; border-top:1px solid var(--border); }
+.export-title {
+  font-size:10px; font-weight:600; letter-spacing:1.5px;
+  color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;
+}
+.filter-group { margin-bottom:10px; }
+.filter-label { font-size:10px; color:var(--text-muted); margin-bottom:4px; }
+.filter-chips { display:flex; flex-wrap:wrap; gap:4px; }
+.filter-chip {
+  font-size:10px; padding:3px 8px; border-radius:4px;
+  border:1px solid var(--border); background:transparent;
+  color:var(--text-muted); cursor:pointer; font-family:var(--font-mono);
+  transition:all 100ms;
+}
+.filter-chip.active { border-color:var(--accent); color:var(--accent); background:var(--accent-glow); }
+.filter-chip.sc-2xx.active { border-color:var(--green); color:var(--green); background:rgba(34,197,94,0.1); }
+.filter-chip.sc-3xx.active { border-color:var(--blue); color:var(--blue); background:rgba(96,165,250,0.1); }
+.filter-chip.sc-4xx.active { border-color:var(--orange); color:var(--orange); background:rgba(251,146,60,0.1); }
+.filter-chip.sc-5xx.active { border-color:var(--red); color:var(--red); background:rgba(248,113,113,0.1); }
+
+.export-buttons { display:flex; gap:8px; }
 .export-btn {
-  flex: 1; padding: 8px 12px; border: 1px solid var(--accent);
-  border-radius: 8px; background: transparent; color: var(--accent);
-  font-family: var(--font-body); font-size: 12px; font-weight: 600;
-  cursor: pointer; transition: all 150ms; text-align: center;
+  flex:1; padding:8px 12px; border:1px solid var(--accent);
+  border-radius:8px; background:transparent; color:var(--accent);
+  font-family:var(--font-body); font-size:12px; font-weight:600;
+  cursor:pointer; transition:all 150ms; text-align:center;
 }
-.export-btn:hover { background: var(--accent); color: #fff; }
-.export-btn:disabled {
-  border-color: var(--border); color: var(--text-muted);
-  cursor: not-allowed; background: transparent;
-}
+.export-btn:hover { background:var(--accent); color:#fff; }
+.export-btn:disabled { border-color:var(--border); color:var(--text-muted); cursor:not-allowed; }
 
 /* --- Terminal Panel --- */
-.terminal-card { display: flex; flex-direction: column; min-height: 400px; }
+.terminal-card { display:flex; flex-direction:column; min-height:400px; }
 .terminal-topbar {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  display:flex; align-items:center; gap:12px;
+  padding:10px 16px; border-bottom:1px solid var(--border);
 }
-.terminal-dots { display: flex; gap: 6px; }
-.terminal-dots span {
-  width: 10px; height: 10px; border-radius: 50%;
-}
-.dot-red { background: var(--red); }
-.dot-yellow { background: var(--yellow); }
-.dot-green { background: var(--green); }
+.terminal-dots { display:flex; gap:6px; }
+.terminal-dots span { width:10px; height:10px; border-radius:50%; }
+.dot-red { background:var(--red); } .dot-yellow { background:var(--yellow); } .dot-green { background:var(--green); }
 .terminal-label {
-  font-size: 11px; font-weight: 600; letter-spacing: 2px;
-  color: var(--text-muted); text-transform: uppercase; flex: 1;
+  font-size:11px; font-weight:600; letter-spacing:2px;
+  color:var(--text-muted); text-transform:uppercase; flex:1;
 }
+.terminal-filters { display:flex; gap:4px; margin-right:8px; }
+.tf-btn {
+  font-size:10px; padding:2px 7px; border-radius:4px;
+  border:1px solid transparent; background:transparent;
+  color:var(--text-muted); cursor:pointer; font-family:var(--font-mono);
+  transition:all 100ms;
+}
+.tf-btn.active { border-color:currentColor; }
+.tf-btn[data-filter="2xx"] { color:var(--green); }
+.tf-btn[data-filter="3xx"] { color:var(--blue); }
+.tf-btn[data-filter="4xx"] { color:var(--orange); }
+.tf-btn[data-filter="5xx"] { color:var(--red); }
+.tf-btn[data-filter="all"] { color:var(--text-primary); }
+
 .copy-btn {
-  padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px;
-  background: transparent; color: var(--text-muted); font-size: 11px;
-  cursor: pointer; font-family: var(--font-body);
+  padding:4px 10px; border:1px solid var(--border); border-radius:6px;
+  background:transparent; color:var(--text-muted); font-size:11px;
+  cursor:pointer; font-family:var(--font-body);
 }
-.copy-btn:hover { color: var(--text-primary); border-color: var(--text-muted); }
+.copy-btn:hover { color:var(--text-primary); border-color:var(--text-muted); }
 
 .terminal-body {
-  flex: 1; overflow-y: auto; padding: 16px;
-  font-family: var(--font-mono); font-size: 13px; line-height: 1.6;
-  background: var(--bg-base); position: relative;
+  flex:1; overflow-y:auto; padding:16px;
+  font-family:var(--font-mono); font-size:12px; line-height:1.7;
+  background:var(--bg-base); position:relative;
 }
 .terminal-empty {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  color: var(--text-muted); text-align: center; font-size: 13px;
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  color:var(--text-muted); text-align:center; font-size:13px;
 }
-.blink-cursor::after {
-  content: '|'; animation: blink 1s step-end infinite;
-}
-@keyframes blink {
-  0%, 100% { opacity: 1; } 50% { opacity: 0; }
-}
+.blink-cursor::after { content:'|'; animation:blink 1s step-end infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
 .log-line {
-  display: flex; gap: 10px; align-items: baseline;
-  animation: lineIn 80ms ease;
+  display:flex; gap:8px; align-items:baseline;
+  padding:1px 0; animation:lineIn 80ms ease;
 }
-@keyframes lineIn { from { opacity: 0; } to { opacity: 1; } }
-.log-ts { color: var(--text-muted); white-space: nowrap; font-size: 11px; }
+.log-line.hidden { display:none; }
+@keyframes lineIn { from{opacity:0} to{opacity:1} }
+.log-ts { color:var(--text-muted); white-space:nowrap; font-size:10px; }
 .log-badge {
-  font-size: 10px; font-weight: 600; padding: 1px 6px;
-  border-radius: 4px; text-transform: uppercase; white-space: nowrap;
+  font-size:9px; font-weight:600; padding:1px 6px;
+  border-radius:3px; text-transform:uppercase; white-space:nowrap;
 }
-.badge-subfinder { background: rgba(96,165,250,0.15); color: var(--blue); }
-.badge-httpx { background: rgba(34,197,94,0.15); color: var(--green); }
-.badge-ffuf { background: rgba(251,191,36,0.15); color: var(--yellow); }
-.badge-nuclei { background: rgba(248,113,113,0.15); color: var(--red); }
-.badge-system { background: rgba(107,114,128,0.15); color: var(--text-muted); }
-.log-msg { color: var(--text-primary); word-break: break-all; }
+.badge-subfinder { background:rgba(96,165,250,0.15); color:var(--blue); }
+.badge-httpx { background:rgba(34,197,94,0.15); color:var(--green); }
+.badge-ffuf { background:rgba(251,191,36,0.15); color:var(--yellow); }
+.badge-whatweb { background:rgba(167,139,250,0.15); color:var(--purple); }
+.badge-wafw00f { background:rgba(251,146,60,0.15); color:var(--orange); }
+.badge-nmap { background:rgba(248,113,113,0.15); color:var(--red); }
+.badge-whois { background:rgba(34,211,238,0.15); color:var(--cyan); }
+.badge-dig { background:rgba(34,211,238,0.15); color:var(--cyan); }
+.badge-system { background:rgba(107,114,128,0.12); color:var(--text-muted); }
+
+.log-status {
+  font-size:10px; font-weight:700; padding:1px 5px; border-radius:3px;
+  font-family:var(--font-mono); white-space:nowrap;
+}
+.sc-2xx { color:var(--green); background:rgba(34,197,94,0.1); }
+.sc-3xx { color:var(--blue); background:rgba(96,165,250,0.1); }
+.sc-4xx { color:var(--orange); background:rgba(251,146,60,0.1); }
+.sc-5xx { color:var(--red); background:rgba(248,113,113,0.1); }
+
+.log-msg { color:var(--text-primary); word-break:break-all; }
 
 .resume-scroll-btn {
-  position: absolute; bottom: 12px; right: 12px;
-  padding: 6px 14px; border: 1px solid var(--border); border-radius: 8px;
-  background: var(--bg-elevated); color: var(--text-muted); font-size: 11px;
-  cursor: pointer; display: none; font-family: var(--font-body);
+  position:sticky; bottom:8px; float:right; margin-top:4px;
+  padding:6px 14px; border:1px solid var(--border); border-radius:8px;
+  background:var(--bg-elevated); color:var(--text-muted); font-size:11px;
+  cursor:pointer; display:none; font-family:var(--font-body);
 }
-.resume-scroll-btn.visible { display: block; }
+.resume-scroll-btn.visible { display:block; }
 
 /* --- History --- */
-.history-section {
-  max-width: 1200px; margin: 16px auto 40px;
-  padding: 0 24px;
-}
+.history-section { max-width:1200px; margin:16px auto 40px; padding:0 24px; }
 .history-toggle {
-  display: flex; align-items: center; gap: 8px;
-  padding: 12px 0; cursor: pointer; user-select: none;
+  display:flex; align-items:center; gap:8px;
+  padding:12px 0; cursor:pointer; user-select:none;
 }
 .history-toggle-title {
-  font-size: 11px; font-weight: 600; letter-spacing: 2px;
-  color: var(--text-muted); text-transform: uppercase;
+  font-size:11px; font-weight:600; letter-spacing:2px;
+  color:var(--text-muted); text-transform:uppercase;
 }
-.history-arrow {
-  font-size: 10px; color: var(--text-muted);
-  transition: transform 200ms;
-}
-.history-toggle.open .history-arrow { transform: rotate(90deg); }
-.history-content { display: none; }
-.history-toggle.open + .history-content { display: block; }
-
-.history-table {
-  width: 100%; border-collapse: collapse;
-  font-size: 13px;
-}
+.history-arrow { font-size:10px; color:var(--text-muted); transition:transform 200ms; }
+.history-toggle.open .history-arrow { transform:rotate(90deg); }
+.history-content { display:none; }
+.history-toggle.open + .history-content { display:block; }
+.history-table { width:100%; border-collapse:collapse; font-size:13px; }
 .history-table th {
-  text-align: left; padding: 8px 12px;
-  color: var(--text-muted); font-weight: 500; font-size: 11px;
-  text-transform: uppercase; letter-spacing: 1px;
-  border-bottom: 1px solid var(--border);
+  text-align:left; padding:8px 12px; color:var(--text-muted);
+  font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:1px;
+  border-bottom:1px solid var(--border);
 }
-.history-table td {
-  padding: 10px 12px; border-bottom: 1px solid var(--border);
-}
-.status-badge {
-  font-size: 11px; font-weight: 600; padding: 2px 8px;
-  border-radius: 4px;
-}
-.status-running { background: rgba(251,146,60,0.15); color: var(--orange); }
-.status-completed { background: rgba(34,197,94,0.15); color: var(--green); }
-.status-error { background: rgba(248,113,113,0.15); color: var(--red); }
-.status-queued { background: rgba(107,114,128,0.15); color: var(--text-muted); }
-
+.history-table td { padding:10px 12px; border-bottom:1px solid var(--border); }
+.status-badge { font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px; }
+.status-running { background:rgba(251,146,60,0.15); color:var(--orange); }
+.status-completed { background:rgba(34,197,94,0.15); color:var(--green); }
+.status-error { background:rgba(248,113,113,0.15); color:var(--red); }
+.status-queued { background:rgba(107,114,128,0.15); color:var(--text-muted); }
 .view-btn {
-  padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px;
-  background: transparent; color: var(--text-muted); font-size: 11px;
-  cursor: pointer; font-family: var(--font-body);
+  padding:4px 10px; border:1px solid var(--border); border-radius:6px;
+  background:transparent; color:var(--text-muted); font-size:11px;
+  cursor:pointer; font-family:var(--font-body);
 }
-.view-btn:hover { color: var(--text-primary); border-color: var(--text-muted); }
-.history-empty { color: var(--text-muted); padding: 20px 0; text-align: center; }
+.view-btn:hover { color:var(--text-primary); border-color:var(--text-muted); }
+.history-empty { color:var(--text-muted); padding:20px 0; text-align:center; }
 </style>
 </head>
 <body>
 
-<!-- Header -->
 <header class="header">
   <div class="header-left">
     <div class="logo-mark">S</div>
     <span class="logo-text">SARA</span>
   </div>
   <div class="header-right">
-    <span class="version-tag">v1.0</span>
+    <span class="version-tag">v1.1</span>
   </div>
 </header>
 
-<!-- Main -->
 <main class="main">
 
   <!-- Hero Input -->
@@ -339,45 +387,56 @@ a:hover { text-decoration: underline; }
     </div>
   </section>
 
+  <!-- Tool Selector -->
+  <section class="tool-selector" id="toolSelector">
+    <div class="tool-selector-header">
+      <span class="tool-selector-title">Recon Tools</span>
+      <div class="tool-select-actions">
+        <button onclick="selectAllTools()">All</button>
+        <button onclick="deselectAllTools()">None</button>
+      </div>
+    </div>
+    <div class="tools-grid" id="toolsGrid"></div>
+  </section>
+
+  <!-- Wordlist -->
+  <section class="wordlist-section">
+    <label>Wordlist</label>
+    <div class="wordlist-toggle">
+      <button class="active" id="wlDefault" onclick="setWordlist('default')">Default</button>
+      <button id="wlCustom" onclick="setWordlist('custom')">Custom</button>
+    </div>
+    <input type="text" class="wordlist-custom-input" id="wlPath" placeholder="/path/to/wordlist.txt" spellcheck="false">
+  </section>
+
   <!-- Dashboard -->
   <div class="dashboard">
 
     <!-- Pipeline Panel -->
     <div class="card pipeline-card">
       <div class="card-title">Pipeline</div>
-      <div class="pipeline-steps">
-        <div class="step" id="step-subfinder" data-step="subfinder">
-          <span class="step-number">01</span>
-          <span class="step-name">subfinder</span>
-          <span class="pulse-dot"></span>
-          <span class="step-icon" id="icon-subfinder"></span>
-        </div>
-        <div class="step" id="step-httpx" data-step="httpx">
-          <span class="step-number">02</span>
-          <span class="step-name">httpx</span>
-          <span class="pulse-dot"></span>
-          <span class="step-icon" id="icon-httpx"></span>
-        </div>
-        <div class="step" id="step-ffuf" data-step="ffuf">
-          <span class="step-number">03</span>
-          <span class="step-name">ffuf</span>
-          <span class="pulse-dot"></span>
-          <span class="step-icon" id="icon-ffuf"></span>
-        </div>
-        <div class="step" id="step-nuclei" data-step="nuclei">
-          <span class="step-number">04</span>
-          <span class="step-name">nuclei</span>
-          <span class="pulse-dot"></span>
-          <span class="step-icon" id="icon-nuclei"></span>
-        </div>
-      </div>
+      <div class="pipeline-steps" id="pipelineSteps"></div>
       <div class="pipeline-footer">
         <div class="elapsed" id="elapsed">00:00</div>
         <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
       </div>
+
+      <!-- Export with filters -->
       <div class="export-section">
-        <button class="export-btn" id="exportPdf" onclick="exportPdf()" disabled>Export PDF</button>
-        <button class="export-btn" id="exportCsv" onclick="exportCsv()" disabled>Export CSV</button>
+        <div class="export-title">Export</div>
+        <div class="filter-group">
+          <div class="filter-label">Filter by status code</div>
+          <div class="filter-chips" id="exportStatusChips">
+            <button class="filter-chip sc-2xx active" data-sc="2xx" onclick="toggleExportFilter(this)">2xx</button>
+            <button class="filter-chip sc-3xx active" data-sc="3xx" onclick="toggleExportFilter(this)">3xx</button>
+            <button class="filter-chip sc-4xx active" data-sc="4xx" onclick="toggleExportFilter(this)">4xx</button>
+            <button class="filter-chip sc-5xx active" data-sc="5xx" onclick="toggleExportFilter(this)">5xx</button>
+          </div>
+        </div>
+        <div class="export-buttons">
+          <button class="export-btn" id="exportPdf" onclick="doExport('pdf')" disabled>PDF</button>
+          <button class="export-btn" id="exportCsv" onclick="doExport('csv')" disabled>CSV</button>
+        </div>
       </div>
     </div>
 
@@ -385,11 +444,16 @@ a:hover { text-decoration: underline; }
     <div class="card terminal-card">
       <div class="terminal-topbar">
         <div class="terminal-dots">
-          <span class="dot-red"></span>
-          <span class="dot-yellow"></span>
-          <span class="dot-green"></span>
+          <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
         </div>
         <span class="terminal-label">Output</span>
+        <div class="terminal-filters">
+          <button class="tf-btn active" data-filter="all" onclick="setTerminalFilter('all',this)">ALL</button>
+          <button class="tf-btn" data-filter="2xx" onclick="setTerminalFilter('2xx',this)">2xx</button>
+          <button class="tf-btn" data-filter="3xx" onclick="setTerminalFilter('3xx',this)">3xx</button>
+          <button class="tf-btn" data-filter="4xx" onclick="setTerminalFilter('4xx',this)">4xx</button>
+          <button class="tf-btn" data-filter="5xx" onclick="setTerminalFilter('5xx',this)">5xx</button>
+        </div>
         <button class="copy-btn" onclick="copyOutput()">Copy</button>
       </div>
       <div class="terminal-body" id="terminalBody">
@@ -402,7 +466,7 @@ a:hover { text-decoration: underline; }
 
   </div>
 
-  <!-- Scan History -->
+  <!-- History -->
   <section class="history-section">
     <div class="history-toggle" id="historyToggle" onclick="toggleHistory()">
       <span class="history-arrow">&#9654;</span>
@@ -410,15 +474,7 @@ a:hover { text-decoration: underline; }
     </div>
     <div class="history-content" id="historyContent">
       <table class="history-table">
-        <thead>
-          <tr>
-            <th>Domain</th>
-            <th>Status</th>
-            <th>Started</th>
-            <th>Duration</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Domain</th><th>Status</th><th>Tools</th><th>Started</th><th>Duration</th><th></th></tr></thead>
         <tbody id="historyBody"></tbody>
       </table>
       <div class="history-empty" id="historyEmpty">No scans yet</div>
@@ -428,18 +484,21 @@ a:hover { text-decoration: underline; }
 </main>
 
 <script>
-// --- State ---
+// =========================================================================
+// State
+// =========================================================================
 let currentScanId = null;
 let scanning = false;
 let autoScroll = true;
 let timerInterval = null;
 let timerStart = 0;
 let eventSource = null;
+let selectedTools = new Set();
+let wordlistMode = 'default';
+let currentTerminalFilter = 'all';
+let activePipeline = [];   // tool ids in execution order
+let seenStatusCodes = new Set();
 
-const tools = ['subfinder', 'httpx', 'ffuf', 'nuclei'];
-const stepProgress = { subfinder: 25, httpx: 50, ffuf: 75, nuclei: 100 };
-
-// --- DOM refs ---
 const domainInput = document.getElementById('domainInput');
 const scanBtn = document.getElementById('scanBtn');
 const terminalBody = document.getElementById('terminalBody');
@@ -449,18 +508,97 @@ const progressFill = document.getElementById('progressFill');
 const elapsedEl = document.getElementById('elapsed');
 const exportPdfBtn = document.getElementById('exportPdf');
 const exportCsvBtn = document.getElementById('exportCsv');
+const pipelineSteps = document.getElementById('pipelineSteps');
 
-// Enter key to scan
-domainInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !scanning) startScan();
-});
+// =========================================================================
+// Tools initialization
+// =========================================================================
+const TOOL_COLORS = {
+  whois:'cyan', dig:'cyan', subfinder:'blue', httpx:'green',
+  wafw00f:'orange', whatweb:'purple', ffuf:'yellow', nmap:'red',
+};
 
-// Auto-scroll detection
+let toolsMeta = {};
+
+async function loadTools() {
+  try {
+    const res = await fetch('/tools');
+    const data = await res.json();
+    toolsMeta = data.tools;
+    const defaults = data.defaults || [];
+    const grid = document.getElementById('toolsGrid');
+    grid.innerHTML = '';
+
+    const ordered = Object.entries(toolsMeta).sort((a,b) => a[1].order - b[1].order);
+    for (const [id, info] of ordered) {
+      const isDefault = defaults.includes(id);
+      if (isDefault) selectedTools.add(id);
+      const card = document.createElement('div');
+      card.className = 'tool-card' + (isDefault ? ' selected' : '');
+      card.dataset.tool = id;
+      card.onclick = () => toggleTool(id, card);
+      card.innerHTML =
+        '<div class="tool-checkbox">' + (isDefault ? '&#10003;' : '') + '</div>' +
+        '<div class="tool-info">' +
+          '<div class="tool-name">' + esc(info.name) + '</div>' +
+          '<div class="tool-desc">' + esc(info.description) + '</div>' +
+        '</div>';
+      grid.appendChild(card);
+    }
+  } catch(e) { console.error('Failed to load tools:', e); }
+}
+
+function toggleTool(id, card) {
+  if (scanning) return;
+  if (selectedTools.has(id)) {
+    selectedTools.delete(id);
+    card.classList.remove('selected');
+    card.querySelector('.tool-checkbox').innerHTML = '';
+  } else {
+    selectedTools.add(id);
+    card.classList.add('selected');
+    card.querySelector('.tool-checkbox').innerHTML = '&#10003;';
+  }
+}
+
+function selectAllTools() {
+  if (scanning) return;
+  document.querySelectorAll('.tool-card').forEach(c => {
+    const id = c.dataset.tool;
+    selectedTools.add(id);
+    c.classList.add('selected');
+    c.querySelector('.tool-checkbox').innerHTML = '&#10003;';
+  });
+}
+
+function deselectAllTools() {
+  if (scanning) return;
+  document.querySelectorAll('.tool-card').forEach(c => {
+    selectedTools.delete(c.dataset.tool);
+    c.classList.remove('selected');
+    c.querySelector('.tool-checkbox').innerHTML = '';
+  });
+}
+
+// =========================================================================
+// Wordlist
+// =========================================================================
+function setWordlist(mode) {
+  wordlistMode = mode;
+  document.getElementById('wlDefault').classList.toggle('active', mode === 'default');
+  document.getElementById('wlCustom').classList.toggle('active', mode === 'custom');
+  document.getElementById('wlPath').classList.toggle('visible', mode === 'custom');
+}
+
+// =========================================================================
+// Scan
+// =========================================================================
+domainInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !scanning) startScan(); });
+
 terminalBody.addEventListener('scroll', () => {
   const { scrollTop, scrollHeight, clientHeight } = terminalBody;
-  const atBottom = scrollHeight - scrollTop - clientHeight < 40;
-  autoScroll = atBottom;
-  resumeScrollBtn.classList.toggle('visible', !atBottom && scanning);
+  autoScroll = scrollHeight - scrollTop - clientHeight < 40;
+  resumeScrollBtn.classList.toggle('visible', !autoScroll && scanning);
 });
 
 function resumeAutoScroll() {
@@ -469,40 +607,30 @@ function resumeAutoScroll() {
   resumeScrollBtn.classList.remove('visible');
 }
 
-// --- Scan ---
 async function startScan() {
   const domain = domainInput.value.trim();
   if (!domain || scanning) return;
-
-  // Validate domain client-side
   if (!/^(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/.test(domain)) {
-    alert('Invalid domain format');
-    return;
+    alert('Invalid domain format'); return;
   }
+  if (selectedTools.size === 0) { alert('Select at least one tool'); return; }
+
+  const wordlist = wordlistMode === 'custom' ? document.getElementById('wlPath').value.trim() || 'default' : 'default';
 
   try {
     const res = await fetch('/scan', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ domain }),
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ domain, tools: [...selectedTools], wordlist }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      alert(err.detail || 'Scan failed');
-      return;
-    }
+    if (!res.ok) { const e = await res.json(); alert(e.detail || 'Scan failed'); return; }
     const data = await res.json();
     currentScanId = data.scan_id;
-
-    // Reset UI
+    seenStatusCodes.clear();
     setScanning(true);
-    resetPipeline();
     clearTerminal();
     startTimer();
     connectSSE(currentScanId);
-  } catch (e) {
-    alert('Failed to start scan: ' + e.message);
-  }
+  } catch(e) { alert('Failed: ' + e.message); }
 }
 
 function setScanning(active) {
@@ -513,15 +641,8 @@ function setScanning(active) {
   domainInput.disabled = active;
   exportPdfBtn.disabled = true;
   exportCsvBtn.disabled = true;
-}
-
-function resetPipeline() {
-  tools.forEach(t => {
-    const el = document.getElementById('step-' + t);
-    el.className = 'step';
-    document.getElementById('icon-' + t).textContent = '';
-  });
-  progressFill.style.width = '0%';
+  // Disable tool selection during scan
+  document.querySelectorAll('.tool-card').forEach(c => c.classList.toggle('disabled', active));
 }
 
 function clearTerminal() {
@@ -529,136 +650,221 @@ function clearTerminal() {
   terminalEmpty.style.display = 'none';
 }
 
-// --- SSE ---
+// =========================================================================
+// Pipeline UI
+// =========================================================================
+function buildPipeline(tools, toolsInfo) {
+  activePipeline = tools;
+  pipelineSteps.innerHTML = '';
+  tools.forEach((id, i) => {
+    const info = toolsInfo[id] || toolsMeta[id] || {};
+    const div = document.createElement('div');
+    div.className = 'step';
+    div.id = 'step-' + id;
+    div.innerHTML =
+      '<span class="step-number">' + String(i+1).padStart(2,'0') + '</span>' +
+      '<span class="step-name">' + esc(info.name || id) + '</span>' +
+      '<span class="step-count" id="count-' + id + '"></span>' +
+      '<span class="pulse-dot"></span>' +
+      '<span class="step-icon" id="icon-' + id + '"></span>';
+    pipelineSteps.appendChild(div);
+  });
+  progressFill.style.width = '0%';
+}
+
+function activateStep(tool) {
+  activePipeline.forEach(t => {
+    const el = document.getElementById('step-' + t);
+    if (el && el.classList.contains('active')) el.classList.remove('active');
+  });
+  const el = document.getElementById('step-' + tool);
+  if (el) el.className = 'step active';
+  updateProgress();
+}
+
+function completeStep(tool, count) {
+  const el = document.getElementById('step-' + tool);
+  if (el) { el.className = 'step done'; }
+  const icon = document.getElementById('icon-' + tool);
+  if (icon) icon.textContent = '\u2713';
+  const cnt = document.getElementById('count-' + tool);
+  if (cnt && count !== undefined) cnt.textContent = count;
+  updateProgress();
+}
+
+function skipStep(tool) {
+  const el = document.getElementById('step-' + tool);
+  if (el) el.className = 'step skip';
+  const icon = document.getElementById('icon-' + tool);
+  if (icon) icon.textContent = '\u2014';
+  updateProgress();
+}
+
+function updateProgress() {
+  const total = activePipeline.length;
+  if (!total) return;
+  let done = 0;
+  activePipeline.forEach(t => {
+    const el = document.getElementById('step-' + t);
+    if (el && (el.classList.contains('done') || el.classList.contains('skip'))) done++;
+    if (el && el.classList.contains('active')) done += 0.5;
+  });
+  progressFill.style.width = Math.min(100, Math.round(done / total * 100)) + '%';
+}
+
+// =========================================================================
+// SSE
+// =========================================================================
 function connectSSE(scanId) {
   if (eventSource) eventSource.close();
   eventSource = new EventSource('/scan/' + scanId + '/stream');
 
   eventSource.onmessage = (e) => {
-    const data = JSON.parse(e.data);
-
-    if (data.type === 'step_start') {
-      activateStep(data.tool);
-    } else if (data.type === 'step_done') {
-      completeStep(data.tool);
-    } else if (data.type === 'step_skip') {
-      skipStep(data.tool);
-    } else if (data.type === 'line') {
-      appendLog(data.tool, data.line, data.ts);
-    } else if (data.type === 'status') {
-      if (data.status === 'completed' || data.status === 'error' || data.status === 'timeout') {
-        finishScan(data.status);
-      }
-    } else if (data.type === 'done') {
-      eventSource.close();
-      eventSource = null;
+    const d = JSON.parse(e.data);
+    if (d.type === 'plan') {
+      buildPipeline(d.tools, d.tools_info || {});
+    } else if (d.type === 'step_start') {
+      activateStep(d.tool);
+    } else if (d.type === 'step_done') {
+      completeStep(d.tool, d.count);
+    } else if (d.type === 'step_skip') {
+      skipStep(d.tool);
+    } else if (d.type === 'line') {
+      appendLog(d.tool, d.line, d.ts, d.data || {});
+    } else if (d.type === 'status') {
+      if (d.status === 'completed' || d.status === 'error' || d.status === 'timeout')
+        finishScan(d.status);
+    } else if (d.type === 'done') {
+      eventSource.close(); eventSource = null;
     }
   };
-
   eventSource.onerror = () => {
-    eventSource.close();
-    eventSource = null;
+    eventSource.close(); eventSource = null;
     if (scanning) finishScan('error');
   };
 }
 
-// --- Pipeline Steps ---
-function activateStep(tool) {
-  // Deactivate all first
-  tools.forEach(t => {
-    const el = document.getElementById('step-' + t);
-    if (el.classList.contains('active')) el.classList.remove('active');
-  });
-  const el = document.getElementById('step-' + tool);
-  el.className = 'step active';
-  document.getElementById('icon-' + tool).textContent = '';
-  progressFill.style.width = (stepProgress[tool] - 20) + '%';
-}
-
-function completeStep(tool) {
-  const el = document.getElementById('step-' + tool);
-  el.className = 'step done';
-  document.getElementById('icon-' + tool).textContent = '\u2713';
-  progressFill.style.width = stepProgress[tool] + '%';
-}
-
-function skipStep(tool) {
-  const el = document.getElementById('step-' + tool);
-  el.className = 'step skip';
-  document.getElementById('icon-' + tool).textContent = '\u2014';
-  progressFill.style.width = stepProgress[tool] + '%';
-}
-
-// --- Terminal ---
-function appendLog(tool, line, ts) {
+// =========================================================================
+// Terminal
+// =========================================================================
+function appendLog(tool, line, ts, data) {
   const row = document.createElement('div');
   row.className = 'log-line';
 
-  const timeStr = ts ? new Date(ts * 1000).toLocaleTimeString('en-GB', { hour12: false }) : '';
+  const sc = data.status_code || 0;
+  let scClass = '';
+  if (sc) {
+    if (sc >= 200 && sc < 300) scClass = '2xx';
+    else if (sc >= 300 && sc < 400) scClass = '3xx';
+    else if (sc >= 400 && sc < 500) scClass = '4xx';
+    else if (sc >= 500) scClass = '5xx';
+    if (scClass) { seenStatusCodes.add(sc); row.dataset.sc = scClass; }
+  }
 
-  row.innerHTML =
-    '<span class="log-ts">' + escapeHtml(timeStr) + '</span>' +
-    '<span class="log-badge badge-' + escapeHtml(tool) + '">' + escapeHtml(tool) + '</span>' +
-    '<span class="log-msg">' + escapeHtml(line) + '</span>';
+  // Apply current filter
+  if (currentTerminalFilter !== 'all' && scClass && scClass !== currentTerminalFilter) {
+    row.classList.add('hidden');
+  }
+
+  const timeStr = ts ? new Date(ts * 1000).toLocaleTimeString('en-GB',{hour12:false}) : '';
+  let html = '<span class="log-ts">' + esc(timeStr) + '</span>' +
+    '<span class="log-badge badge-' + esc(tool) + '">' + esc(tool) + '</span>';
+
+  if (sc) {
+    html += '<span class="log-status sc-' + scClass + '">' + sc + '</span>';
+  }
+
+  html += '<span class="log-msg">' + esc(line) + '</span>';
+  row.innerHTML = html;
 
   terminalBody.insertBefore(row, resumeScrollBtn);
-
-  if (autoScroll) {
-    terminalBody.scrollTop = terminalBody.scrollHeight;
-  }
+  if (autoScroll) terminalBody.scrollTop = terminalBody.scrollHeight;
 }
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+function setTerminalFilter(filter, btn) {
+  currentTerminalFilter = filter;
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  terminalBody.querySelectorAll('.log-line').forEach(row => {
+    if (filter === 'all') { row.classList.remove('hidden'); return; }
+    const sc = row.dataset.sc;
+    if (!sc) { row.classList.remove('hidden'); return; }  // show non-status lines always
+    row.classList.toggle('hidden', sc !== filter);
+  });
 }
 
-// --- Timer ---
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// =========================================================================
+// Timer
+// =========================================================================
 function startTimer() {
   timerStart = Date.now();
   clearInterval(timerInterval);
   timerInterval = setInterval(updateTimer, 1000);
   updateTimer();
 }
-
 function updateTimer() {
   const s = Math.floor((Date.now() - timerStart) / 1000);
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  elapsedEl.textContent = String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+  elapsedEl.textContent = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
 }
+function stopTimer() { clearInterval(timerInterval); }
 
-function stopTimer() {
-  clearInterval(timerInterval);
-}
-
-// --- Finish ---
+// =========================================================================
+// Finish
+// =========================================================================
 function finishScan(status) {
   setScanning(false);
   stopTimer();
   progressFill.style.width = '100%';
-
   if (status === 'completed') {
     exportPdfBtn.disabled = false;
     exportCsvBtn.disabled = false;
   }
-
   loadHistory();
 }
 
-// --- Export ---
-function exportPdf() {
-  if (currentScanId) window.open('/scan/' + currentScanId + '/export/pdf', '_blank');
+// =========================================================================
+// Export with filters
+// =========================================================================
+function toggleExportFilter(btn) { btn.classList.toggle('active'); }
+
+function getExportParams() {
+  const activeChips = document.querySelectorAll('#exportStatusChips .filter-chip.active');
+  const ranges = [...activeChips].map(c => c.dataset.sc);
+
+  // Expand ranges to actual seen status codes
+  const codes = [];
+  seenStatusCodes.forEach(sc => {
+    const range = sc >= 500 ? '5xx' : sc >= 400 ? '4xx' : sc >= 300 ? '3xx' : sc >= 200 ? '2xx' : '';
+    if (ranges.includes(range)) codes.push(sc);
+  });
+
+  let params = '';
+  if (codes.length > 0 && codes.length < seenStatusCodes.size) {
+    params += 'status_codes=' + codes.join(',');
+  }
+  return params;
 }
 
-function exportCsv() {
-  if (currentScanId) window.open('/scan/' + currentScanId + '/export/csv', '_blank');
+function doExport(format) {
+  if (!currentScanId) return;
+  const params = getExportParams();
+  const url = '/scan/' + currentScanId + '/export/' + format + (params ? '?' + params : '');
+  window.open(url, '_blank');
 }
 
-// --- Copy Output ---
+// =========================================================================
+// Copy
+// =========================================================================
 function copyOutput() {
-  const lines = terminalBody.querySelectorAll('.log-line');
+  const lines = terminalBody.querySelectorAll('.log-line:not(.hidden)');
   const text = Array.from(lines).map(l => l.textContent).join('\n');
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.querySelector('.copy-btn');
@@ -667,10 +873,10 @@ function copyOutput() {
   });
 }
 
-// --- History ---
-function toggleHistory() {
-  document.getElementById('historyToggle').classList.toggle('open');
-}
+// =========================================================================
+// History
+// =========================================================================
+function toggleHistory() { document.getElementById('historyToggle').classList.toggle('open'); }
 
 async function loadHistory() {
   try {
@@ -679,35 +885,29 @@ async function loadHistory() {
     const scans = data.scans || [];
     const body = document.getElementById('historyBody');
     const empty = document.getElementById('historyEmpty');
-
     document.getElementById('historyTitle').textContent = 'History (' + scans.length + ')';
 
-    if (scans.length === 0) {
-      body.innerHTML = '';
-      empty.style.display = 'block';
-      return;
-    }
+    if (!scans.length) { body.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
 
-    body.innerHTML = scans.slice(0, 10).map(s => {
+    body.innerHTML = scans.slice(0,10).map(s => {
       const started = new Date(s.created_at * 1000).toLocaleString();
       let duration = '-';
       if (s.finished_at) {
         const d = Math.floor(s.finished_at - s.created_at);
-        duration = Math.floor(d / 60) + 'm ' + (d % 60) + 's';
+        duration = Math.floor(d/60) + 'm ' + (d%60) + 's';
       }
-      const statusClass = 'status-' + s.status;
+      const tools = (s.tools || []).join(', ');
       return '<tr>' +
-        '<td>' + escapeHtml(s.domain) + '</td>' +
-        '<td><span class="status-badge ' + statusClass + '">' + escapeHtml(s.status) + '</span></td>' +
-        '<td>' + escapeHtml(started) + '</td>' +
-        '<td>' + escapeHtml(duration) + '</td>' +
-        '<td><button class="view-btn" onclick="viewScan(\'' + escapeHtml(s.id) + '\')">View</button></td>' +
+        '<td>' + esc(s.domain) + '</td>' +
+        '<td><span class="status-badge status-' + s.status + '">' + esc(s.status) + '</span></td>' +
+        '<td style="font-size:11px;color:var(--text-muted)">' + esc(tools) + '</td>' +
+        '<td>' + esc(started) + '</td>' +
+        '<td>' + esc(duration) + '</td>' +
+        '<td><button class="view-btn" onclick="viewScan(\'' + s.id + '\')">View</button></td>' +
         '</tr>';
     }).join('');
-  } catch (e) {
-    console.error('Failed to load history:', e);
-  }
+  } catch(e) { console.error('History error:', e); }
 }
 
 async function viewScan(scanId) {
@@ -715,47 +915,46 @@ async function viewScan(scanId) {
     const res = await fetch('/scan/' + scanId + '/result');
     const data = await res.json();
     currentScanId = scanId;
-
     clearTerminal();
-    resetPipeline();
+    seenStatusCodes.clear();
+
+    // Rebuild pipeline from scan tools
+    const tools = data.scan.tools || [];
+    const info = {};
+    tools.forEach(t => { if (toolsMeta[t]) info[t] = toolsMeta[t]; });
+    buildPipeline(tools, info);
 
     const results = data.results || [];
     const seenTools = new Set();
-
     results.forEach(r => {
-      appendLog(r.tool, r.line, r.ts);
+      let d = r.data || {};
+      if (typeof d === 'string') try { d = JSON.parse(d); } catch(e) { d = {}; }
+      appendLog(r.tool, r.line, r.ts, d);
       if (r.tool !== 'system') seenTools.add(r.tool);
     });
 
     seenTools.forEach(t => completeStep(t));
     tools.forEach(t => {
-      if (!seenTools.has(t)) {
-        const el = document.getElementById('step-' + t);
-        if (!el.classList.contains('done')) skipStep(t);
-      }
+      if (!seenTools.has(t)) skipStep(t);
     });
-
     progressFill.style.width = '100%';
 
     if (data.scan.status === 'completed') {
       exportPdfBtn.disabled = false;
       exportCsvBtn.disabled = false;
     }
-
     if (data.scan.finished_at && data.scan.created_at) {
       const d = Math.floor(data.scan.finished_at - data.scan.created_at);
-      const m = Math.floor(d / 60);
-      const sec = d % 60;
-      elapsedEl.textContent = String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+      elapsedEl.textContent = String(Math.floor(d/60)).padStart(2,'0') + ':' + String(d%60).padStart(2,'0');
     }
-  } catch (e) {
-    alert('Failed to load scan: ' + e.message);
-  }
+  } catch(e) { alert('Failed to load scan: ' + e.message); }
 }
 
-// --- Init ---
+// =========================================================================
+// Init
+// =========================================================================
+loadTools();
 loadHistory();
 </script>
-
 </body>
 </html>

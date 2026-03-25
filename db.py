@@ -1,4 +1,5 @@
 import aiosqlite
+import json
 import time
 import os
 from dotenv import load_dotenv
@@ -15,6 +16,8 @@ async def init_db():
                 id TEXT PRIMARY KEY,
                 domain TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'queued',
+                tools TEXT NOT NULL DEFAULT '[]',
+                wordlist TEXT DEFAULT 'default',
                 created_at REAL NOT NULL,
                 finished_at REAL
             )
@@ -25,25 +28,25 @@ async def init_db():
                 scan_id TEXT NOT NULL,
                 tool TEXT NOT NULL,
                 line TEXT NOT NULL,
+                data TEXT DEFAULT '{}',
                 ts REAL NOT NULL,
                 FOREIGN KEY (scan_id) REFERENCES scans(id)
             )
         """)
-        await db.execute("""
-            CREATE INDEX IF NOT EXISTS idx_results_scan_id ON results(scan_id)
-        """)
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_results_scan_id ON results(scan_id)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_results_tool ON results(scan_id, tool)")
         await db.commit()
 
 
-async def create_scan(scan_id: str, domain: str) -> dict:
+async def create_scan(scan_id: str, domain: str, tools: list[str], wordlist: str = "default") -> dict:
     now = time.time()
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT INTO scans (id, domain, status, created_at) VALUES (?, ?, 'queued', ?)",
-            (scan_id, domain, now),
+            "INSERT INTO scans (id, domain, status, tools, wordlist, created_at) VALUES (?, ?, 'queued', ?, ?, ?)",
+            (scan_id, domain, json.dumps(tools), wordlist, now),
         )
         await db.commit()
-    return {"id": scan_id, "domain": domain, "status": "queued", "created_at": now}
+    return {"id": scan_id, "domain": domain, "status": "queued", "tools": tools, "created_at": now}
 
 
 async def update_scan_status(scan_id: str, status: str):
@@ -55,21 +58,21 @@ async def update_scan_status(scan_id: str, status: str):
             )
         else:
             await db.execute(
-                "UPDATE scans SET status = ? WHERE id = ?",
-                (status, scan_id),
+                "UPDATE scans SET status = ? WHERE id = ?", (status, scan_id),
             )
         await db.commit()
 
 
-async def insert_result(scan_id: str, tool: str, line: str) -> dict:
+async def insert_result(scan_id: str, tool: str, line: str, data: dict | None = None) -> dict:
     ts = time.time()
+    data_str = json.dumps(data) if data else "{}"
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT INTO results (scan_id, tool, line, ts) VALUES (?, ?, ?, ?)",
-            (scan_id, tool, line, ts),
+            "INSERT INTO results (scan_id, tool, line, data, ts) VALUES (?, ?, ?, ?, ?)",
+            (scan_id, tool, line, data_str, ts),
         )
         await db.commit()
-    return {"tool": tool, "line": line, "ts": ts}
+    return {"tool": tool, "line": line, "data": data or {}, "ts": ts}
 
 
 async def get_scan(scan_id: str) -> dict | None:
@@ -79,18 +82,42 @@ async def get_scan(scan_id: str) -> dict | None:
         row = await cursor.fetchone()
         if not row:
             return None
-        return dict(row)
+        d = dict(row)
+        d["tools"] = json.loads(d.get("tools", "[]"))
+        return d
 
 
-async def get_scan_results(scan_id: str) -> list[dict]:
+async def get_scan_results(scan_id: str, tools: list[str] | None = None,
+                           status_codes: list[int] | None = None) -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        cursor = await db.execute(
-            "SELECT tool, line, ts FROM results WHERE scan_id = ? ORDER BY ts ASC",
-            (scan_id,),
-        )
+        query = "SELECT tool, line, data, ts FROM results WHERE scan_id = ?"
+        params: list = [scan_id]
+
+        if tools:
+            placeholders = ",".join("?" for _ in tools)
+            query += f" AND tool IN ({placeholders})"
+            params.extend(tools)
+
+        query += " ORDER BY ts ASC"
+        cursor = await db.execute(query, params)
         rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+
+        results = []
+        for r in rows:
+            entry = dict(r)
+            try:
+                entry["data"] = json.loads(entry.get("data", "{}"))
+            except (json.JSONDecodeError, TypeError):
+                entry["data"] = {}
+
+            # Filter by status code if requested
+            if status_codes and entry["data"].get("status_code"):
+                if entry["data"]["status_code"] not in status_codes:
+                    continue
+
+            results.append(entry)
+        return results
 
 
 async def get_all_scans(limit: int = 50, offset: int = 0) -> list[dict]:
@@ -101,4 +128,9 @@ async def get_all_scans(limit: int = 50, offset: int = 0) -> list[dict]:
             (limit, offset),
         )
         rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        scans = []
+        for r in rows:
+            d = dict(r)
+            d["tools"] = json.loads(d.get("tools", "[]"))
+            scans.append(d)
+        return scans

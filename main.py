@@ -3,15 +3,19 @@ import json
 import uuid
 import os
 from contextlib import asynccontextmanager
+from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse, Response, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from db import init_db, create_scan, get_scan, get_scan_results, get_all_scans
-from scanner import validate_domain, run_scan, subscribe, unsubscribe
+from scanner import (
+    validate_domain, run_scan, subscribe, unsubscribe,
+    get_tools_info, resolve_tools, DEFAULT_TOOLS,
+)
 from exporter import export_pdf, export_csv
 
 load_dotenv()
@@ -30,9 +34,20 @@ app = FastAPI(title="SARA", version="1.0", lifespan=lifespan)
 
 class ScanRequest(BaseModel):
     domain: str
+    tools: list[str] | None = None
+    wordlist: str = "default"
 
 
 # --- API Routes ---
+
+@app.get("/tools")
+async def list_tools():
+    """Return available recon tools and their metadata."""
+    return {
+        "tools": get_tools_info(),
+        "defaults": DEFAULT_TOOLS,
+    }
+
 
 @app.post("/scan")
 async def start_scan(req: ScanRequest):
@@ -40,13 +55,19 @@ async def start_scan(req: ScanRequest):
     if not validate_domain(domain):
         raise HTTPException(status_code=400, detail="Invalid domain format")
 
+    selected = req.tools or DEFAULT_TOOLS
+    tools_info = get_tools_info()
+    for t in selected:
+        if t not in tools_info:
+            raise HTTPException(status_code=400, detail=f"Unknown tool: {t}")
+
+    resolved = resolve_tools(selected)
     scan_id = uuid.uuid4().hex[:12]
-    scan = await create_scan(scan_id, domain)
+    await create_scan(scan_id, domain, resolved, req.wordlist)
 
-    # Fire and forget the scan task
-    asyncio.create_task(run_scan(scan_id, domain))
+    asyncio.create_task(run_scan(scan_id, domain, selected, req.wordlist))
 
-    return {"scan_id": scan_id, "domain": domain, "status": "queued"}
+    return {"scan_id": scan_id, "domain": domain, "status": "queued", "tools": resolved}
 
 
 @app.get("/scan/{scan_id}/stream")
@@ -60,14 +81,11 @@ async def scan_stream(scan_id: str, request: Request):
     async def event_generator():
         try:
             while True:
-                # Check if client disconnected
                 if await request.is_disconnected():
                     break
-
                 try:
                     event = await asyncio.wait_for(queue.get(), timeout=30.0)
                 except asyncio.TimeoutError:
-                    # Send keepalive comment
                     yield ": keepalive\n\n"
                     continue
 
@@ -82,11 +100,8 @@ async def scan_stream(scan_id: str, request: Request):
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive",
+                 "X-Accel-Buffering": "no"},
     )
 
 
@@ -95,18 +110,24 @@ async def scan_result(scan_id: str):
     scan = await get_scan(scan_id)
     if not scan:
         raise HTTPException(status_code=404, detail="Scan not found")
-
     results = await get_scan_results(scan_id)
     return {"scan": scan, "results": results}
 
 
 @app.get("/scan/{scan_id}/export/pdf")
-async def scan_export_pdf(scan_id: str):
+async def scan_export_pdf(
+    scan_id: str,
+    tools: Optional[str] = Query(None, description="Comma-separated tool filter"),
+    status_codes: Optional[str] = Query(None, description="Comma-separated status codes"),
+):
     scan = await get_scan(scan_id)
     if not scan:
         raise HTTPException(status_code=404, detail="Scan not found")
 
-    results = await get_scan_results(scan_id)
+    tool_filter = [t.strip() for t in tools.split(",")] if tools else None
+    sc_filter = [int(s.strip()) for s in status_codes.split(",")] if status_codes else None
+
+    results = await get_scan_results(scan_id, tools=tool_filter, status_codes=sc_filter)
     pdf_bytes = export_pdf(scan, results)
 
     return Response(
@@ -117,12 +138,19 @@ async def scan_export_pdf(scan_id: str):
 
 
 @app.get("/scan/{scan_id}/export/csv")
-async def scan_export_csv(scan_id: str):
+async def scan_export_csv(
+    scan_id: str,
+    tools: Optional[str] = Query(None, description="Comma-separated tool filter"),
+    status_codes: Optional[str] = Query(None, description="Comma-separated status codes"),
+):
     scan = await get_scan(scan_id)
     if not scan:
         raise HTTPException(status_code=404, detail="Scan not found")
 
-    results = await get_scan_results(scan_id)
+    tool_filter = [t.strip() for t in tools.split(",")] if tools else None
+    sc_filter = [int(s.strip()) for s in status_codes.split(",")] if status_codes else None
+
+    results = await get_scan_results(scan_id, tools=tool_filter, status_codes=sc_filter)
     csv_str = export_csv(scan, results)
 
     return Response(
@@ -140,7 +168,6 @@ async def list_scans(limit: int = 50, offset: int = 0):
 
 # --- Serve Frontend ---
 
-# Serve index.html at root
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
     index_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
@@ -148,5 +175,4 @@ async def serve_index():
         return HTMLResponse(content=f.read())
 
 
-# Mount static files for any additional assets
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
