@@ -1,7 +1,8 @@
 import aiosqlite
 import json
-import time
 import os
+import time
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -13,40 +14,50 @@ async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             CREATE TABLE IF NOT EXISTS scans (
-                id TEXT PRIMARY KEY,
-                domain TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'queued',
-                tools TEXT NOT NULL DEFAULT '[]',
-                wordlist TEXT DEFAULT 'default',
-                created_at REAL NOT NULL,
+                id          TEXT PRIMARY KEY,
+                domain      TEXT NOT NULL,
+                status      TEXT NOT NULL DEFAULT 'queued',
+                tools       TEXT NOT NULL DEFAULT '[]',
+                wordlist    TEXT DEFAULT 'default',
+                created_at  REAL NOT NULL,
                 finished_at REAL
             )
         """)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS results (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                scan_id TEXT NOT NULL,
-                tool TEXT NOT NULL,
-                line TEXT NOT NULL,
-                data TEXT DEFAULT '{}',
-                ts REAL NOT NULL,
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                scan_id  TEXT NOT NULL,
+                tool     TEXT NOT NULL,
+                line     TEXT NOT NULL,
+                data     TEXT DEFAULT '{}',
+                ts       REAL NOT NULL,
                 FOREIGN KEY (scan_id) REFERENCES scans(id)
             )
         """)
-        await db.execute("CREATE INDEX IF NOT EXISTS idx_results_scan_id ON results(scan_id)")
-        await db.execute("CREATE INDEX IF NOT EXISTS idx_results_tool ON results(scan_id, tool)")
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_results_scan ON results(scan_id)"
+        )
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_results_tool ON results(scan_id, tool)"
+        )
         await db.commit()
 
 
-async def create_scan(scan_id: str, domain: str, tools: list[str], wordlist: str = "default") -> dict:
+async def create_scan(
+    scan_id: str, domain: str, tools: list[str], wordlist: str = "default"
+) -> dict:
     now = time.time()
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT INTO scans (id, domain, status, tools, wordlist, created_at) VALUES (?, ?, 'queued', ?, ?, ?)",
+            "INSERT INTO scans (id, domain, status, tools, wordlist, created_at) "
+            "VALUES (?, ?, 'queued', ?, ?, ?)",
             (scan_id, domain, json.dumps(tools), wordlist, now),
         )
         await db.commit()
-    return {"id": scan_id, "domain": domain, "status": "queued", "tools": tools, "created_at": now}
+    return {
+        "id": scan_id, "domain": domain, "status": "queued",
+        "tools": tools, "created_at": now,
+    }
 
 
 async def update_scan_status(scan_id: str, status: str):
@@ -58,18 +69,21 @@ async def update_scan_status(scan_id: str, status: str):
             )
         else:
             await db.execute(
-                "UPDATE scans SET status = ? WHERE id = ?", (status, scan_id),
+                "UPDATE scans SET status = ? WHERE id = ?",
+                (status, scan_id),
             )
         await db.commit()
 
 
-async def insert_result(scan_id: str, tool: str, line: str, data: dict | None = None) -> dict:
+async def insert_result(
+    scan_id: str, tool: str, line: str, data: dict | None = None
+) -> dict:
     ts = time.time()
-    data_str = json.dumps(data) if data else "{}"
+    payload = json.dumps(data) if data else "{}"
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "INSERT INTO results (scan_id, tool, line, data, ts) VALUES (?, ?, ?, ?, ?)",
-            (scan_id, tool, line, data_str, ts),
+            (scan_id, tool, line, payload, ts),
         )
         await db.commit()
     return {"tool": tool, "line": line, "data": data or {}, "ts": ts}
@@ -78,32 +92,35 @@ async def insert_result(scan_id: str, tool: str, line: str, data: dict | None = 
 async def get_scan(scan_id: str) -> dict | None:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        cursor = await db.execute("SELECT * FROM scans WHERE id = ?", (scan_id,))
-        row = await cursor.fetchone()
+        cur = await db.execute("SELECT * FROM scans WHERE id = ?", (scan_id,))
+        row = await cur.fetchone()
         if not row:
             return None
-        d = dict(row)
-        d["tools"] = json.loads(d.get("tools", "[]"))
-        return d
+        scan = dict(row)
+        scan["tools"] = json.loads(scan.get("tools", "[]"))
+        return scan
 
 
-async def get_scan_results(scan_id: str, tools: list[str] | None = None,
-                           status_codes: list[int] | None = None) -> list[dict]:
+async def get_scan_results(
+    scan_id: str,
+    tools: list[str] | None = None,
+    status_codes: list[int] | None = None,
+) -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         query = "SELECT tool, line, data, ts FROM results WHERE scan_id = ?"
         params: list = [scan_id]
 
         if tools:
-            placeholders = ",".join("?" for _ in tools)
+            placeholders = ",".join("?" * len(tools))
             query += f" AND tool IN ({placeholders})"
             params.extend(tools)
 
         query += " ORDER BY ts ASC"
-        cursor = await db.execute(query, params)
-        rows = await cursor.fetchall()
+        cur = await db.execute(query, params)
+        rows = await cur.fetchall()
 
-        results = []
+        out = []
         for r in rows:
             entry = dict(r)
             try:
@@ -111,26 +128,25 @@ async def get_scan_results(scan_id: str, tools: list[str] | None = None,
             except (json.JSONDecodeError, TypeError):
                 entry["data"] = {}
 
-            # Filter by status code if requested
             if status_codes and entry["data"].get("status_code"):
                 if entry["data"]["status_code"] not in status_codes:
                     continue
 
-            results.append(entry)
-        return results
+            out.append(entry)
+        return out
 
 
 async def get_all_scans(limit: int = 50, offset: int = 0) -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        cursor = await db.execute(
+        cur = await db.execute(
             "SELECT * FROM scans ORDER BY created_at DESC LIMIT ? OFFSET ?",
             (limit, offset),
         )
-        rows = await cursor.fetchall()
-        scans = []
+        rows = await cur.fetchall()
+        out = []
         for r in rows:
-            d = dict(r)
-            d["tools"] = json.loads(d.get("tools", "[]"))
-            scans.append(d)
-        return scans
+            scan = dict(r)
+            scan["tools"] = json.loads(scan.get("tools", "[]"))
+            out.append(scan)
+        return out

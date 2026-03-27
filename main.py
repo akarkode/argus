@@ -1,7 +1,7 @@
 import asyncio
 import json
-import uuid
 import os
+import uuid
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -30,23 +30,15 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="ARGUS", version="1.1", lifespan=lifespan)
 
 
-# --- Models ---
-
 class ScanRequest(BaseModel):
     domain: str
     tools: list[str] | None = None
     wordlist: str = "default"
 
 
-# --- API Routes ---
-
 @app.get("/tools")
 async def list_tools():
-    """Return available recon tools and their metadata."""
-    return {
-        "tools": get_tools_info(),
-        "defaults": DEFAULT_TOOLS,
-    }
+    return {"tools": get_tools_info(), "defaults": DEFAULT_TOOLS}
 
 
 @app.post("/scan")
@@ -62,9 +54,8 @@ async def start_scan(req: ScanRequest):
             raise HTTPException(status_code=400, detail=f"Unknown tool: {t}")
 
     resolved = resolve_tools(selected)
-    scan_id = uuid.uuid4().hex[:12]
+    scan_id  = uuid.uuid4().hex[:12]
     await create_scan(scan_id, domain, resolved, req.wordlist)
-
     asyncio.create_task(run_scan(scan_id, domain, selected, req.wordlist))
 
     return {"scan_id": scan_id, "domain": domain, "status": "queued", "tools": resolved}
@@ -89,19 +80,20 @@ async def scan_stream(scan_id: str, request: Request):
                     yield ": keepalive\n\n"
                     continue
 
-                if event.get("type") == "done":
-                    yield f"data: {json.dumps(event)}\n\n"
-                    break
-
                 yield f"data: {json.dumps(event)}\n\n"
+                if event.get("type") == "done":
+                    break
         finally:
             unsubscribe(scan_id, queue)
 
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive",
-                 "X-Accel-Buffering": "no"},
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
@@ -117,18 +109,17 @@ async def scan_result(scan_id: str):
 @app.get("/scan/{scan_id}/export/pdf")
 async def scan_export_pdf(
     scan_id: str,
-    tools: Optional[str] = Query(None, description="Comma-separated tool filter"),
-    status_codes: Optional[str] = Query(None, description="Comma-separated status codes"),
+    tools: Optional[str] = Query(None),
+    status_codes: Optional[str] = Query(None),
 ):
     scan = await get_scan(scan_id)
     if not scan:
         raise HTTPException(status_code=404, detail="Scan not found")
 
     tool_filter = [t.strip() for t in tools.split(",")] if tools else None
-    sc_filter = [int(s.strip()) for s in status_codes.split(",")] if status_codes else None
-
-    results = await get_scan_results(scan_id, tools=tool_filter, status_codes=sc_filter)
-    pdf_bytes = export_pdf(scan, results)
+    sc_filter   = [int(s.strip()) for s in status_codes.split(",")] if status_codes else None
+    results     = await get_scan_results(scan_id, tools=tool_filter, status_codes=sc_filter)
+    pdf_bytes   = export_pdf(scan, results)
 
     return Response(
         content=pdf_bytes,
@@ -140,18 +131,17 @@ async def scan_export_pdf(
 @app.get("/scan/{scan_id}/export/csv")
 async def scan_export_csv(
     scan_id: str,
-    tools: Optional[str] = Query(None, description="Comma-separated tool filter"),
-    status_codes: Optional[str] = Query(None, description="Comma-separated status codes"),
+    tools: Optional[str] = Query(None),
+    status_codes: Optional[str] = Query(None),
 ):
     scan = await get_scan(scan_id)
     if not scan:
         raise HTTPException(status_code=404, detail="Scan not found")
 
     tool_filter = [t.strip() for t in tools.split(",")] if tools else None
-    sc_filter = [int(s.strip()) for s in status_codes.split(",")] if status_codes else None
-
-    results = await get_scan_results(scan_id, tools=tool_filter, status_codes=sc_filter)
-    csv_str = export_csv(scan, results)
+    sc_filter   = [int(s.strip()) for s in status_codes.split(",")] if status_codes else None
+    results     = await get_scan_results(scan_id, tools=tool_filter, status_codes=sc_filter)
+    csv_str     = export_csv(scan, results)
 
     return Response(
         content=csv_str,
@@ -162,17 +152,18 @@ async def scan_export_csv(
 
 @app.get("/scans")
 async def list_scans(limit: int = 50, offset: int = 0):
-    scans = await get_all_scans(limit=limit, offset=offset)
-    return {"scans": scans}
+    return {"scans": await get_all_scans(limit=limit, offset=offset)}
 
-
-# --- Serve Frontend ---
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
-    index_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
-    with open(index_path, "r", encoding="utf-8") as f:
+    path = os.path.join(os.path.dirname(__file__), "static", "index.html")
+    with open(path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
 
-app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
+app.mount(
+    "/static",
+    StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")),
+    name="static",
+)

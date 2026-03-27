@@ -3,17 +3,14 @@ import json
 import os
 import re
 import time
+
 from dotenv import load_dotenv
 from db import insert_result, update_scan_status
 
 load_dotenv()
 
-WORDLIST_PATH = os.getenv("WORDLIST_PATH", "wordlists/common.txt")
-SCAN_TIMEOUT = int(os.getenv("SCAN_TIMEOUT", "1800"))
-
-# ---------------------------------------------------------------------------
-# Tool registry  (subfinder is internal — merged into httpx)
-# ---------------------------------------------------------------------------
+WORDLIST = os.getenv("WORDLIST_PATH", "wordlists/common.txt")
+TIMEOUT  = int(os.getenv("SCAN_TIMEOUT", "1800"))
 
 TOOLS_INFO = {
     "whois": {
@@ -62,13 +59,9 @@ TOOLS_INFO = {
 
 DEFAULT_TOOLS = ["httpx", "ffuf", "whatweb", "wafw00f"]
 
-# ---------------------------------------------------------------------------
-# Global state
-# ---------------------------------------------------------------------------
-
-_scan_lock = asyncio.Lock()
-_subscribers: dict[str, list[asyncio.Queue]] = {}
-_active_process: dict[str, asyncio.subprocess.Process] = {}
+_lock   = asyncio.Lock()
+_queues: dict[str, list[asyncio.Queue]] = {}
+_procs:  dict[str, asyncio.subprocess.Process] = {}
 
 
 def get_tools_info() -> dict:
@@ -76,7 +69,6 @@ def get_tools_info() -> dict:
 
 
 def resolve_tools(selected: list[str]) -> list[str]:
-    """Add missing dependencies and return tools in execution order."""
     resolved = set(selected)
     changed = True
     while changed:
@@ -94,56 +86,48 @@ def validate_domain(domain: str) -> bool:
     return bool(re.match(pattern, domain)) and len(domain) <= 253
 
 
-# ---------------------------------------------------------------------------
-# SSE pub/sub
-# ---------------------------------------------------------------------------
-
 async def _broadcast(scan_id: str, event: dict):
-    for queue in _subscribers.get(scan_id, []):
-        await queue.put(event)
+    for q in _queues.get(scan_id, []):
+        await q.put(event)
 
 
 def subscribe(scan_id: str) -> asyncio.Queue:
-    queue = asyncio.Queue()
-    _subscribers.setdefault(scan_id, []).append(queue)
-    return queue
+    q = asyncio.Queue()
+    _queues.setdefault(scan_id, []).append(q)
+    return q
 
 
-def unsubscribe(scan_id: str, queue: asyncio.Queue):
-    if scan_id in _subscribers:
-        _subscribers[scan_id] = [q for q in _subscribers[scan_id] if q is not queue]
-        if not _subscribers[scan_id]:
-            del _subscribers[scan_id]
+def unsubscribe(scan_id: str, q: asyncio.Queue):
+    if scan_id in _queues:
+        _queues[scan_id] = [x for x in _queues[scan_id] if x is not q]
+        if not _queues[scan_id]:
+            del _queues[scan_id]
 
 
-# ---------------------------------------------------------------------------
-# Subprocess helpers
-# ---------------------------------------------------------------------------
+async def _run_tool(
+    scan_id: str,
+    tool: str,
+    cmd: list[str],
+    timeout: float,
+    parser=None,
+    broadcast: bool = True,
+    emit_steps: bool = True,
+) -> list[dict]:
+    if broadcast and emit_steps:
+        await _broadcast(scan_id, {"type": "step_start", "tool": tool})
+        ev = await insert_result(scan_id, "system", f"Running {tool}...")
+        await _broadcast(scan_id, {"type": "line", **ev})
 
-async def _run_tool(scan_id: str, tool_name: str, cmd: list[str],
-                    timeout: float, parser=None, broadcast: bool = True,
-                    emit_step_events: bool = True) -> list[dict]:
-    """Run a subprocess, stream stdout, parse each line, return parsed results.
-
-    When broadcast=False the lines are collected but NOT sent to the SSE stream
-    or persisted in the database (used for silent subfinder phase).
-    When emit_step_events=False, step_start/step_done are suppressed (caller manages them).
-    """
-    if broadcast and emit_step_events:
-        await _broadcast(scan_id, {"type": "step_start", "tool": tool_name})
-        sys_event = await insert_result(scan_id, "system", f"Running {tool_name}...")
-        await _broadcast(scan_id, {"type": "line", **sys_event})
-
-    parsed_results = []
+    collected = []
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        _active_process[scan_id] = proc
+        _procs[scan_id] = proc
 
-        async def read_stream():
+        async def _read():
             while True:
                 raw = await proc.stdout.readline()
                 if not raw:
@@ -151,45 +135,46 @@ async def _run_tool(scan_id: str, tool_name: str, cmd: list[str],
                 text = raw.decode("utf-8", errors="replace").strip()
                 if not text:
                     continue
-
-                display_line, data = parser(text) if parser else (text, {})
-                parsed_results.append({"line": display_line, "data": data, "raw": text})
-
+                line, data = parser(text) if parser else (text, {})
+                collected.append({"line": line, "data": data, "raw": text})
                 if broadcast:
-                    event = await insert_result(scan_id, tool_name, display_line, data)
-                    await _broadcast(scan_id, {"type": "line", **event})
+                    ev = await insert_result(scan_id, tool, line, data)
+                    await _broadcast(scan_id, {"type": "line", **ev})
 
         try:
-            await asyncio.wait_for(read_stream(), timeout=timeout)
+            await asyncio.wait_for(_read(), timeout=timeout)
         except asyncio.TimeoutError:
             proc.kill()
             if broadcast:
-                ev = await insert_result(scan_id, "system",
-                    f"{tool_name} timed out after {int(timeout)}s")
+                ev = await insert_result(
+                    scan_id, "system", f"{tool} timed out after {int(timeout)}s"
+                )
                 await _broadcast(scan_id, {"type": "line", **ev})
 
         await proc.wait()
 
     except FileNotFoundError:
         if broadcast:
-            ev = await insert_result(scan_id, "system",
-                f"{tool_name} not found in PATH — skipping")
+            ev = await insert_result(
+                scan_id, "system", f"{tool} not found in PATH — skipping"
+            )
             await _broadcast(scan_id, {"type": "line", **ev})
     finally:
-        _active_process.pop(scan_id, None)
+        _procs.pop(scan_id, None)
 
-    if broadcast and emit_step_events:
-        count = len(parsed_results)
-        await _broadcast(scan_id, {"type": "step_done", "tool": tool_name, "count": count})
-        summary = await insert_result(scan_id, "system",
-            f"{tool_name} finished — {count} results", {"summary": True, "count": count})
-        await _broadcast(scan_id, {"type": "line", **summary})
+    if broadcast and emit_steps:
+        count = len(collected)
+        await _broadcast(scan_id, {"type": "step_done", "tool": tool, "count": count})
+        ev = await insert_result(
+            scan_id, "system", f"{tool} finished — {count} results",
+            {"summary": True, "count": count},
+        )
+        await _broadcast(scan_id, {"type": "line", **ev})
 
-    return parsed_results
+    return collected
 
 
-async def _run_subfinder_silent(scan_id: str, domain: str, timeout: float) -> list[str]:
-    """Run subfinder silently — no log output, just collect subdomains."""
+async def _subfinder(scan_id: str, domain: str, timeout: float) -> list[str]:
     results = await _run_tool(
         scan_id, "subfinder",
         ["subfinder", "-d", domain, "-silent"],
@@ -200,18 +185,16 @@ async def _run_subfinder_silent(scan_id: str, domain: str, timeout: float) -> li
     return [r["data"].get("subdomain", r["line"]) for r in results if r["line"]]
 
 
-# ---------------------------------------------------------------------------
-# Per-tool parsers
-# ---------------------------------------------------------------------------
-
 def _parse_whois(line: str) -> tuple[str, dict]:
     data = {}
     if ":" in line:
         key, _, val = line.partition(":")
         key = key.strip().lower()
         val = val.strip()
-        if any(k in key for k in ["registrar", "creation", "expir", "name server",
-                                    "registrant", "org", "country", "dnssec", "updated"]):
+        if any(k in key for k in [
+            "registrar", "creation", "expir", "name server",
+            "registrant", "org", "country", "dnssec", "updated",
+        ]):
             data = {"field": key, "value": val}
     return line, data
 
@@ -220,14 +203,16 @@ def _parse_dig(line: str) -> tuple[str, dict]:
     data = {}
     m = re.match(r"^(\S+)\s+(\d+)\s+IN\s+(\w+)\s+(.+)$", line)
     if m:
-        data = {"name": m.group(1), "ttl": int(m.group(2)),
-                "type": m.group(3), "value": m.group(4).strip()}
+        data = {
+            "name": m.group(1), "ttl": int(m.group(2)),
+            "type": m.group(3), "value": m.group(4).strip(),
+        }
     return line, data
 
 
 def _parse_subfinder(line: str) -> tuple[str, dict]:
-    subdomain = line.strip()
-    return subdomain, {"subdomain": subdomain}
+    s = line.strip()
+    return s, {"subdomain": s}
 
 
 def _parse_httpx_json(line: str) -> tuple[str, dict]:
@@ -236,279 +221,260 @@ def _parse_httpx_json(line: str) -> tuple[str, dict]:
     except json.JSONDecodeError:
         return line, {}
 
-    url = obj.get("url", "")
+    url    = obj.get("url", "")
     status = obj.get("status_code") or obj.get("status-code", 0)
-    title = obj.get("title", "")
-    tech = obj.get("tech") or obj.get("technologies") or []
+    title  = obj.get("title", "")
+    tech   = obj.get("tech") or obj.get("technologies") or []
     server = obj.get("webserver") or obj.get("web-server", "")
-    cl = obj.get("content_length") or obj.get("content-length", 0)
-    final_url = obj.get("final_url", "")
-    host = obj.get("host", "")
+    cl     = obj.get("content_length") or obj.get("content-length", 0)
+    final  = obj.get("final_url", "")
+    host   = obj.get("host", "")
     scheme = obj.get("scheme", "")
-    port = obj.get("port", "")
+    port   = obj.get("port", "")
 
-    if isinstance(tech, list):
-        tech_str = ", ".join(tech) if tech else ""
-    else:
-        tech_str = str(tech)
-
+    tech_str = ", ".join(tech) if isinstance(tech, list) else str(tech)
     parts = [url]
-    if status:
-        parts.append(f"[{status}]")
-    if title:
-        parts.append(f"[{title}]")
-    if tech_str:
-        parts.append(f"[{tech_str}]")
-    if server:
-        parts.append(f"[{server}]")
-    if cl:
-        parts.append(f"[{cl} bytes]")
+    if status:  parts.append(f"[{status}]")
+    if title:   parts.append(f"[{title}]")
+    if tech_str: parts.append(f"[{tech_str}]")
+    if server:  parts.append(f"[{server}]")
+    if cl:      parts.append(f"[{cl} bytes]")
 
-    display = "  ".join(parts)
     data = {
-        "url": url, "status_code": int(status) if status else 0,
-        "title": title, "tech": tech if isinstance(tech, list) else [],
-        "server": server, "content_length": int(cl) if cl else 0,
-        "host": host, "scheme": scheme, "port": port,
+        "url": url,
+        "status_code": int(status) if status else 0,
+        "title": title,
+        "tech": tech if isinstance(tech, list) else [],
+        "server": server,
+        "content_length": int(cl) if cl else 0,
+        "host": host,
+        "scheme": scheme,
+        "port": port,
     }
-    if final_url and final_url != url:
-        data["redirect_to"] = final_url
-    return display, data
+    if final and final != url:
+        data["redirect_to"] = final
+
+    return "  ".join(parts), data
 
 
 def _parse_wafw00f(line: str) -> tuple[str, dict]:
-    data = {}
     m = re.search(r"(https?://\S+)\s+is behind\s+(.+?)(?:\s*\((.+?)\))?$", line)
     if m:
-        data = {"url": m.group(1), "waf_detected": True,
-                "waf_name": m.group(2).strip(),
-                "waf_vendor": (m.group(3) or "").strip()}
-        return line, data
-
+        return line, {
+            "url": m.group(1),
+            "waf_detected": True,
+            "waf_name": m.group(2).strip(),
+            "waf_vendor": (m.group(3) or "").strip(),
+        }
     m2 = re.search(r"(https?://\S+)\s+.*[Nn]o WAF", line)
     if m2:
-        data = {"url": m2.group(1), "waf_detected": False, "waf_name": "", "waf_vendor": ""}
-
-    return line, data
+        return line, {
+            "url": m2.group(1), "waf_detected": False,
+            "waf_name": "", "waf_vendor": "",
+        }
+    return line, {}
 
 
 def _parse_whatweb(line: str) -> tuple[str, dict]:
-    data = {}
     m = re.match(r"(https?://\S+)\s+\[(\d+)\s*([^\]]*)\]\s*(.*)", line)
     if m:
-        url = m.group(1)
-        status = int(m.group(2))
-        plugins_raw = m.group(4)
-        techs = re.findall(r"([A-Za-z0-9_\-]+(?:\[.*?\])?)", plugins_raw)
-        data = {"url": url, "status_code": status, "technologies": techs}
-    return line, data
+        techs = re.findall(r"([A-Za-z0-9_\-]+(?:\[.*?\])?)", m.group(4))
+        return line, {
+            "url": m.group(1),
+            "status_code": int(m.group(2)),
+            "technologies": techs,
+        }
+    return line, {}
 
 
 def _parse_ffuf(line: str) -> tuple[str, dict]:
-    data = {}
-    m = re.match(r"(\S+)\s+\[Status:\s*(\d+),\s*Size:\s*(\d+),\s*Words:\s*(\d+),\s*Lines:\s*(\d+)", line)
+    m = re.match(
+        r"(\S+)\s+\[Status:\s*(\d+),\s*Size:\s*(\d+),\s*Words:\s*(\d+),\s*Lines:\s*(\d+)",
+        line,
+    )
     if m:
-        data = {
+        return line, {
             "path": m.group(1),
             "status_code": int(m.group(2)),
             "size": int(m.group(3)),
             "words": int(m.group(4)),
             "lines": int(m.group(5)),
         }
-        return line, data
-
-    if line.startswith("http://") or line.startswith("https://"):
-        data = {"url": line, "path": line}
-
-    return line, data
+    if line.startswith(("http://", "https://")):
+        return line, {"url": line, "path": line}
+    return line, {}
 
 
 def _parse_nmap(line: str) -> tuple[str, dict]:
-    data = {}
     m = re.match(r"(\d+)/(\w+)\s+(\w+)\s+(\S+)\s*(.*)", line)
     if m:
-        data = {
+        return line, {
             "port": int(m.group(1)),
             "protocol": m.group(2),
             "state": m.group(3),
             "service": m.group(4),
             "version": m.group(5).strip(),
         }
-    elif "scan report for" in line:
+    if "scan report for" in line:
         m2 = re.search(r"for\s+(\S+)\s*(?:\(([^)]+)\))?", line)
         if m2:
-            data = {"host": m2.group(1), "ip": (m2.group(2) or "").strip()}
-    return line, data
+            return line, {"host": m2.group(1), "ip": (m2.group(2) or "").strip()}
+    return line, {}
 
 
-# ---------------------------------------------------------------------------
-# Main scan runner
-# ---------------------------------------------------------------------------
-
-async def run_scan(scan_id: str, domain: str, selected_tools: list[str],
-                   wordlist: str = "default"):
-    """Execute the full recon pipeline sequentially."""
-    async with _scan_lock:
+async def run_scan(
+    scan_id: str, domain: str, selected_tools: list[str], wordlist: str = "default"
+):
+    async with _lock:
         await update_scan_status(scan_id, "running")
         await _broadcast(scan_id, {"type": "status", "status": "running"})
 
-        execution_plan = resolve_tools(selected_tools)
+        plan = resolve_tools(selected_tools)
         await _broadcast(scan_id, {
             "type": "plan",
-            "tools": execution_plan,
-            "tools_info": {t: TOOLS_INFO[t] for t in execution_plan},
+            "tools": plan,
+            "tools_info": {t: TOOLS_INFO[t] for t in plan},
         })
 
-        start_time = time.time()
-        remaining = lambda: max(60, SCAN_TIMEOUT - (time.time() - start_time))
+        t0 = time.time()
+        def time_left() -> float:
+            return max(60.0, TIMEOUT - (time.time() - t0))
 
-        wordlist_path = WORDLIST_PATH if wordlist == "default" else wordlist
-        context = {"domain": domain, "subdomains": [], "live_hosts": [], "_sub_file": None}
+        wl  = WORDLIST if wordlist == "default" else wordlist
+        ctx = {"domain": domain, "subdomains": [], "live_hosts": [], "sub_file": None}
 
         try:
-            for tool_id in execution_plan:
+            for tool in plan:
 
-                # --- HTTPX (includes silent subfinder) ---
-                if tool_id == "httpx":
+                if tool == "httpx":
                     await _broadcast(scan_id, {"type": "step_start", "tool": "httpx"})
-
-                    # Phase 1: run subfinder silently
-                    ev = await insert_result(scan_id, "system",
-                        "Enumerating subdomains...")
+                    ev = await insert_result(scan_id, "system", "Enumerating subdomains...")
                     await _broadcast(scan_id, {"type": "line", **ev})
 
-                    subdomains = await _run_subfinder_silent(
-                        scan_id, domain, timeout=remaining())
-                    context["subdomains"] = subdomains
+                    subs = await _subfinder(scan_id, domain, timeout=time_left())
+                    ctx["subdomains"] = subs
 
-                    ev = await insert_result(scan_id, "system",
-                        f"Discovered {len(subdomains)} subdomains — probing with httpx...",
-                        {"summary": True, "count": len(subdomains)})
+                    ev = await insert_result(
+                        scan_id, "system",
+                        f"Discovered {len(subs)} subdomains — probing with httpx...",
+                        {"summary": True, "count": len(subs)},
+                    )
                     await _broadcast(scan_id, {"type": "line", **ev})
 
-                    if not subdomains:
-                        ev = await insert_result(scan_id, "system",
-                            "No subdomains found — skipping HTTP probing")
+                    if not subs:
+                        ev = await insert_result(
+                            scan_id, "system", "No subdomains found — skipping HTTP probing"
+                        )
                         await _broadcast(scan_id, {"type": "line", **ev})
                         await _broadcast(scan_id, {"type": "step_done", "tool": "httpx", "count": 0})
                         continue
 
-                    # Write subdomains to temp file
                     sub_file = os.path.join(
-                        os.environ.get("TEMP", "/tmp"),
-                        f"argus_{scan_id}_subs.txt",
+                        os.environ.get("TEMP", "/tmp"), f"argus_{scan_id}_subs.txt"
                     )
                     with open(sub_file, "w") as f:
-                        f.write("\n".join(subdomains))
-                    context["_sub_file"] = sub_file
+                        f.write("\n".join(subs))
+                    ctx["sub_file"] = sub_file
 
-                    # Phase 2: run httpx — lines are logged, but step events managed here
-                    httpx_cmd = [
-                        "httpx", "-l", sub_file, "-json",
-                        "-tech-detect", "-follow-redirects",
-                    ]
-                    results = await _run_tool(
-                        scan_id, "httpx", httpx_cmd,
-                        timeout=remaining(), parser=_parse_httpx_json,
-                        broadcast=True, emit_step_events=False,
+                    probe_results = await _run_tool(
+                        scan_id, "httpx",
+                        ["httpx", "-l", sub_file, "-json", "-tech-detect", "-follow-redirects"],
+                        timeout=time_left(), parser=_parse_httpx_json,
+                        broadcast=True, emit_steps=False,
                     )
 
-                    live_hosts = []
-                    for r in results:
-                        url = r["data"].get("url", "")
-                        if url:
-                            live_hosts.append(url.rstrip("/"))
-                    context["live_hosts"] = live_hosts
+                    live = [r["data"]["url"].rstrip("/") for r in probe_results if r["data"].get("url")]
+                    ctx["live_hosts"] = live
 
-                    # Summary: subdomains found + live hosts probed
-                    summary = await insert_result(scan_id, "system",
-                        f"httpx finished — {len(subdomains)} subdomains, {len(live_hosts)} live hosts",
-                        {"summary": True, "subdomains": len(subdomains), "live_hosts": len(live_hosts)})
-                    await _broadcast(scan_id, {"type": "line", **summary})
-                    await _broadcast(scan_id, {"type": "step_done", "tool": "httpx", "count": len(live_hosts)})
+                    ev = await insert_result(
+                        scan_id, "system",
+                        f"httpx finished — {len(subs)} subdomains, {len(live)} live hosts",
+                        {"summary": True, "subdomains": len(subs), "live_hosts": len(live)},
+                    )
+                    await _broadcast(scan_id, {"type": "line", **ev})
+                    await _broadcast(scan_id, {"type": "step_done", "tool": "httpx", "count": len(live)})
 
-                # --- FFUF (per host) ---
-                elif tool_id == "ffuf":
-                    hosts = context.get("live_hosts", [])
+                elif tool == "ffuf":
+                    hosts = ctx.get("live_hosts", [])
                     if not hosts:
-                        ev = await insert_result(scan_id, "system",
-                            "ffuf skipped — no live hosts")
+                        ev = await insert_result(scan_id, "system", "ffuf skipped — no live hosts")
                         await _broadcast(scan_id, {"type": "line", **ev})
                         await _broadcast(scan_id, {"type": "step_skip", "tool": "ffuf"})
                         continue
 
                     await _broadcast(scan_id, {"type": "step_start", "tool": "ffuf"})
-                    ev = await insert_result(scan_id, "system",
-                        f"Fuzzing {min(len(hosts), 20)} hosts with {os.path.basename(wordlist_path)}...")
+                    ev = await insert_result(
+                        scan_id, "system",
+                        f"Fuzzing {min(len(hosts), 20)} hosts with {os.path.basename(wl)}..."
+                    )
                     await _broadcast(scan_id, {"type": "line", **ev})
 
-                    all_ffuf = []
+                    ffuf_results = []
                     for host in hosts[:20]:
-                        fuzz_url = f"{host}/FUZZ"
                         results = await _run_tool(
                             scan_id, "ffuf",
-                            ["ffuf", "-u", fuzz_url, "-w", wordlist_path,
-                             "-mc", "all", "-fc", "404", "-se"],
-                            timeout=remaining(), parser=_parse_ffuf,
-                            broadcast=True,
+                            ["ffuf", "-u", f"{host}/FUZZ", "-w", wl, "-mc", "all", "-fc", "404", "-se"],
+                            timeout=time_left(), parser=_parse_ffuf, broadcast=True,
                         )
                         for r in results:
                             if r["data"].get("status_code"):
                                 r["data"]["host"] = host
-                        all_ffuf.extend(results)
+                        ffuf_results.extend(results)
 
-                    summary = await insert_result(scan_id, "system",
-                        f"ffuf finished — {len(all_ffuf)} total results across {min(len(hosts), 20)} hosts",
-                        {"summary": True, "count": len(all_ffuf)})
-                    await _broadcast(scan_id, {"type": "line", **summary})
-                    await _broadcast(scan_id, {"type": "step_done", "tool": "ffuf", "count": len(all_ffuf)})
+                    ev = await insert_result(
+                        scan_id, "system",
+                        f"ffuf finished — {len(ffuf_results)} results across {min(len(hosts), 20)} hosts",
+                        {"summary": True, "count": len(ffuf_results)},
+                    )
+                    await _broadcast(scan_id, {"type": "line", **ev})
+                    await _broadcast(scan_id, {"type": "step_done", "tool": "ffuf", "count": len(ffuf_results)})
 
-                # --- WAFW00F ---
-                elif tool_id == "wafw00f":
-                    hosts = context.get("live_hosts", [])
+                elif tool == "wafw00f":
+                    hosts = ctx.get("live_hosts", [])
                     if not hosts:
-                        ev = await insert_result(scan_id, "system",
-                            "wafw00f skipped — no live hosts")
+                        ev = await insert_result(scan_id, "system", "wafw00f skipped — no live hosts")
                         await _broadcast(scan_id, {"type": "line", **ev})
                         await _broadcast(scan_id, {"type": "step_skip", "tool": "wafw00f"})
                         continue
-                    await _run_tool(scan_id, "wafw00f",
-                                    ["wafw00f"] + hosts[:30],
-                                    timeout=remaining(), parser=_parse_wafw00f)
+                    await _run_tool(
+                        scan_id, "wafw00f", ["wafw00f"] + hosts[:30],
+                        timeout=time_left(), parser=_parse_wafw00f,
+                    )
 
-                # --- WHATWEB ---
-                elif tool_id == "whatweb":
-                    hosts = context.get("live_hosts", [])
+                elif tool == "whatweb":
+                    hosts = ctx.get("live_hosts", [])
                     if not hosts:
-                        ev = await insert_result(scan_id, "system",
-                            "whatweb skipped — no live hosts")
+                        ev = await insert_result(scan_id, "system", "whatweb skipped — no live hosts")
                         await _broadcast(scan_id, {"type": "line", **ev})
                         await _broadcast(scan_id, {"type": "step_skip", "tool": "whatweb"})
                         continue
-                    await _run_tool(scan_id, "whatweb",
-                                    ["whatweb", "--color=never", "-q"] + hosts[:30],
-                                    timeout=remaining(), parser=_parse_whatweb)
+                    await _run_tool(
+                        scan_id, "whatweb",
+                        ["whatweb", "--color=never", "-q"] + hosts[:30],
+                        timeout=time_left(), parser=_parse_whatweb,
+                    )
 
-                # --- WHOIS ---
-                elif tool_id == "whois":
-                    await _run_tool(scan_id, "whois",
-                                    ["whois", domain],
-                                    timeout=remaining(), parser=_parse_whois)
+                elif tool == "whois":
+                    await _run_tool(
+                        scan_id, "whois", ["whois", domain],
+                        timeout=time_left(), parser=_parse_whois,
+                    )
 
-                # --- DIG ---
-                elif tool_id == "dig":
-                    await _run_tool(scan_id, "dig",
-                                    ["dig", domain, "ANY", "+noall", "+answer"],
-                                    timeout=remaining(), parser=_parse_dig)
+                elif tool == "dig":
+                    await _run_tool(
+                        scan_id, "dig",
+                        ["dig", domain, "ANY", "+noall", "+answer"],
+                        timeout=time_left(), parser=_parse_dig,
+                    )
 
-                # --- NMAP ---
-                elif tool_id == "nmap":
-                    await _run_tool(scan_id, "nmap",
-                                    ["nmap", "-sV", "--top-ports", "100", "-T4", "--open", domain],
-                                    timeout=remaining(), parser=_parse_nmap)
+                elif tool == "nmap":
+                    await _run_tool(
+                        scan_id, "nmap",
+                        ["nmap", "-sV", "--top-ports", "100", "-T4", "--open", domain],
+                        timeout=time_left(), parser=_parse_nmap,
+                    )
 
-            # Cleanup temp files
-            sub_file = context.get("_sub_file")
+            sub_file = ctx.get("sub_file")
             if sub_file:
                 try:
                     os.remove(sub_file)
@@ -521,8 +487,8 @@ async def run_scan(scan_id: str, domain: str, selected_tools: list[str],
         except asyncio.CancelledError:
             await update_scan_status(scan_id, "error")
             await _broadcast(scan_id, {"type": "status", "status": "error"})
-        except Exception as e:
-            ev = await insert_result(scan_id, "system", f"Error: {str(e)}")
+        except Exception as exc:
+            ev = await insert_result(scan_id, "system", f"Error: {exc}")
             await _broadcast(scan_id, {"type": "line", **ev})
             await update_scan_status(scan_id, "error")
             await _broadcast(scan_id, {"type": "status", "status": "error"})
